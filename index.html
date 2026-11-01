@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MagSafe Cüzdan Simülasyonu</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Archivo:wght@600;700&display=swap">
+<style>
+/* Layout: sol tarafta 3B sahne, sağda adım listesi ve kullanım kontrolleri; dar ekranda alt alta. */
+:root{
+  --bg:#eceff2; --panel:#fafbfc; --ink:#14181f; --muted:#59636f; --line:#d3d8de;
+  --accent:#0b5fc4; --accent-ink:#ffffff; --hot:#d9480f; --stage:#dde2e8; --chip:#e6eaee;
+  --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1115; --panel:#171b21; --ink:#e9ecf0; --muted:#97a1ad; --line:#2a313a;
+  --accent:#6aaeff; --accent-ink:#06121f; --hot:#ff8c55; --stage:#0a0c0f; --chip:#232930; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1115; --panel:#171b21; --ink:#e9ecf0; --muted:#97a1ad; --line:#2a313a;
+  --accent:#6aaeff; --accent-ink:#06121f; --hot:#ff8c55; --stage:#0a0c0f; --chip:#232930; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,4vw,36px);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:6px 0 0;max-width:68ch}
+.spec{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:12px}
+.spec span{font-family:var(--f-mono);font-size:12px;background:var(--chip);border-radius:4px;padding:3px 8px;white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.stagebox{display:flex;flex-direction:column;gap:10px;min-width:0}
+.stage{position:relative;background:var(--stage);border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:4/3;min-height:300px;touch-action:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage canvas{display:block;width:100%;height:100%}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lab{position:absolute;transform:translate(10px,-50%);font-size:12px;line-height:1.25;background:var(--panel);color:var(--ink);
+  border:1px solid var(--hot);border-radius:4px;padding:3px 7px;white-space:nowrap;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.lab::before{content:"";position:absolute;left:-11px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--hot)}
+.hint{position:absolute;left:10px;bottom:8px;font-size:12px;color:var(--muted);pointer-events:none}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar .sp{flex:1}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer;min-height:36px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+label.tg{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;min-height:36px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px;min-width:0}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.step{border-radius:6px}
+.step>button{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:10px;min-height:44px;font-weight:500}
+.step .n{font-family:var(--f-mono);font-size:12px;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}
+.step.on{background:var(--chip)}
+.step.on .n{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.step.done .n{border-color:var(--accent);color:var(--accent)}
+.body{display:none;padding:0 12px 12px 48px;color:var(--ink)}
+.step.on .body{display:block}
+.body p{margin:0 0 8px;max-width:60ch}
+.body ul{margin:0;padding-left:18px;color:var(--muted)}
+.body li{margin:2px 0}
+.use{border-top:1px solid var(--line);margin:6px 4px 4px;padding:14px 8px 8px;display:flex;flex-direction:column;gap:12px}
+.use[hidden]{display:none}
+.row{display:flex;flex-direction:column;gap:6px}
+.row .top{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.row .top b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.ticks{position:relative;height:16px;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+.state{font-size:14px;border-left:3px solid var(--hot);padding:4px 10px;background:var(--chip);border-radius:0 4px 4px 0;min-height:44px}
+.note{font-size:13px;color:var(--muted);margin:0 4px 8px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>MagSafe Cüzdan: montaj ve kullanım</h1>
+    <p class="sub">Konsept panosuna göre çizilmiş 3B doğrulama modeli (CAD'deki STL değil): beş parça, yaylı kilit ve kartların yana çıkışı. Sürükleyerek döndür, tekerlekle yakınlaş.</p>
+    <div class="spec"><span>66 × 100 mm</span><span>kalınlık ≈ 9.3 mm</span><span>4 kart</span><span>halika Ø54/Ø46 × 1 mm</span><span>PETG önerilir</span></div>
+  </header>
+
+  <div class="layout">
+    <div class="stagebox">
+      <div class="stage" id="stage">
+        <canvas id="cv" aria-label="MagSafe cüzdanın 3B modeli"></canvas>
+        <div class="labels" id="labels"></div>
+        <div class="hint">Sürükle: döndür · Tekerlek: yakınlaş</div>
+      </div>
+      <div class="bar">
+        <button id="prev">← Önceki</button>
+        <button id="next" class="primary">Sonraki adım →</button>
+        <button id="play">▶ Otomatik oynat</button>
+        <span class="sp"></span>
+        <button data-view="front">Ön</button>
+        <button data-view="back">Telefon yüzü</button>
+        <button data-view="side">Yan</button>
+        <button data-view="iso">Perspektif</button>
+      </div>
+      <div class="bar">
+        <label class="tg"><input type="checkbox" id="tgLabels" checked> Etiketler</label>
+        <label class="tg"><input type="checkbox" id="tgLid"> Kapağı şeffaf göster</label>
+        <label class="tg"><input type="checkbox" id="tgCards" checked> Kartlar</label>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <ol class="steps" id="steps"></ol>
+      <div class="use" id="use" hidden>
+        <div class="row">
+          <div class="top"><span>Taşıyıcıyı kaydır</span><b id="slideVal">0 mm</b></div>
+          <input type="range" id="slide" min="0" max="26" step="0.1" value="0" aria-label="Taşıyıcı açıklığı (mm)">
+          <div class="ticks" aria-hidden="true"><span style="left:0%;transform:none">kapalı</span><span style="left:53.8%">kademe 14</span><span style="left:100%;transform:translateX(-100%)">durdurucu 26</span></div>
+        </div>
+        <div class="btnrow">
+          <button data-go="0">Kapat</button><button data-go="14">Yarı aç</button><button data-go="26">Tam aç</button>
+        </div>
+        <div class="state" id="state" aria-live="polite"></div>
+        </div>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* Konsept panosuna göre çizilmiş doğrulama modeli (CAD'deki STL değil). X = kayma yönü (66), Y = 100, Z = kalınlık. */
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const W=66,H=100,R=9;
+
+const STEPS=[
+ {t:"Parçalar",p:"Konsept panosundaki beş parça: üst kapak, sürgülü kart taşıyıcı, taban gövde, yaylı kilit tırnağı ve MagSafe mıknatısı.",
+  l:["Taban gövde: duvarlar, raylar, MagSafe dairesi, rampalar","Taşıyıcı: kartlar + ortadaki kaydırma tırnağı","Kapak: ince, hafif yükseltilmiş orta panel"]},
+ {t:"Mıknatısı yapıştır",p:"Halka mıknatıs tabanın telefona bakan yüzündeki dairesel yuvaya alttan yapıştırılır. Üzerinde plastik yok.",
+  l:["Halka Ø54 / Ø46 × 1 mm, küçük dikdörtgen mıknatıs altında","Yuva 0.1 mm içeride, telefon çizilmez","Telefona tutup çekim yönünü kontrol et, sonra yapıştır"]},
+ {t:"Kilit tırnağını tak",p:"Yaylı kilit tırnağı ön duvardaki yuvaya oturur. Kaydırırken rampaların üstünden geçerek kademelerde klik yapar.",
+  l:["Kapalı konum ve kısmen açık konum için iki durdurma","Geri çekildiğinde kilitler, kartlar tamamen fırlamaz"]},
+ {t:"Taşıyıcıyı yerleştir",p:"Sürgülü kart taşıyıcı raylara oturur. Ortadaki kaydırma tırnağı kapağın yuvasına denk gelir.",
+  l:["Raylar iki kenarda, taşıyıcının altında","Omurga kartların üstünden geçerek tırnağa bağlanır, tırnak kapağın yuvasından çıkar"]},
+ {t:"Kartları koy",p:"Dört kart taşıyıcıya yerleştirilir. Taşıyıcı kartlarla birlikte yana çıkar.",
+  l:["Yuva 86.6 × 59 mm, kart 85.6 × 54 mm","Kalınlık: 4 kart ≈ 3 mm"]},
+ {t:"Kapağı yapıştır",p:"Kapak duvarların üstüne oturur ve sabitlenir. Ortasındaki yuvadan tırnak çıkar.",
+  l:["Toplam kalınlık yaklaşık 9.3 mm (panodaki 9–10 mm)","Kapak ile taşıyıcı arasında kayma boşluğu kalır"]},
+ {t:"Telefona tak",p:"Cüzdan MagSafe halkası telefondakine denk gelecek şekilde arkaya yaklaştırılır.",
+  l:["Gösterilen telefon yaklaşık bir iPhone ölçüsüdür","Kamera adasıyla çakışmayı kendi telefonunda kontrol et"]},
+ {t:"Kullan",p:"1. Kapağın ortasındaki tırnağı yuvada sağa kaydır. 2. Kartlar birlikte dışarı çıkar. 3. Geri iterek yerine kilitle.",
+  l:["Kapalı → 14 mm → 26 mm: iki kademe, sonra durdurucu","Yalnızca kartlar ve taşıyıcı kayar; kapak ve taban sabit"]}
+];
+
+/* ---------- sahne ---------- */
+const stageEl=document.getElementById('stage'),cv=document.getElementById('cv');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(30,4/3,1,3000);
+
+/* yumuşak stüdyo ışığı için basit ortam haritası */
+{const es=new THREE.Scene();
+ es.add(new THREE.Mesh(new THREE.BoxGeometry(900,900,900),new THREE.MeshBasicMaterial({color:0x6d727a,side:THREE.BackSide})));
+ const box=(w,h,x,y,z,c,rx,ry)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:c,side:THREE.DoubleSide}));m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);es.add(m);};
+ box(500,300,0,0,420,0xffffff,0,0);box(300,500,-420,0,0,0xdfe6f2,0,Math.PI/2);box(400,200,0,420,0,0xffffff,Math.PI/2,0);
+ const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(es,0.04).texture;}
+scene.add(new THREE.HemisphereLight(0xffffff,0x4a4f58,0.35));
+const dl=new THREE.DirectionalLight(0xffffff,0.9);dl.position.set(140,-80,260);dl.castShadow=true;
+dl.shadow.mapSize.set(2048,2048);Object.assign(dl.shadow.camera,{left:-170,right:170,top:170,bottom:-170,near:10,far:900});dl.shadow.bias=-0.0006;dl.target.position.set(33,50,0);
+scene.add(dl,dl.target);
+
+const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.62,metalness:.04},o));
+const M={base:mat(0x1b1c20),wall:mat(0x1b1c20),disc:mat(0x2f3238,{roughness:.5}),rail:mat(0x2a2c31),
+  tray:mat(0x2d3036),tab:mat(0x41454d,{roughness:.5}),lock:mat(0x41454d,{roughness:.5}),
+  lid:mat(0x23252a,{transparent:true,opacity:1}),lidP:mat(0x2a2c32,{transparent:true,opacity:1}),
+  mag:mat(0xc9ced6,{metalness:.8,roughness:.3}),glass:mat(0x0a0b0d,{roughness:.15,metalness:.4})};
+
+function rr(w,h,r,n){const s=new THREE.Shape();s.moveTo(r,0);s.lineTo(w-r,0);s.absarc(w-r,r,r,-Math.PI/2,0);s.lineTo(w,h-r);s.absarc(w-r,h-r,r,0,Math.PI/2);s.lineTo(r,h);s.absarc(r,h-r,r,Math.PI/2,Math.PI);s.lineTo(0,r);s.absarc(r,r,r,Math.PI,Math.PI*1.5);return s;}
+function rrNotch(w,h,r,y0,y1,x0){const s=new THREE.Shape();s.moveTo(r,0);s.lineTo(w-r,0);s.absarc(w-r,r,r,-Math.PI/2,0);s.lineTo(w,y0);s.lineTo(x0,y0);s.lineTo(x0,y1);s.lineTo(w,y1);s.lineTo(w,h-r);s.absarc(w-r,h-r,r,0,Math.PI/2);s.lineTo(r,h);s.absarc(r,h-r,r,Math.PI/2,Math.PI);s.lineTo(0,r);s.absarc(r,r,r,Math.PI,Math.PI*1.5);return s;}
+function slotPath(x0,x1,yc,hw){const p=new THREE.Path();p.moveTo(x0+hw,yc-hw);p.lineTo(x1-hw,yc-hw);p.absarc(x1-hw,yc,hw,-Math.PI/2,Math.PI/2,false);p.lineTo(x0+hw,yc+hw);p.absarc(x0+hw,yc,hw,Math.PI/2,Math.PI*1.5,false);return p;}
+/* x0,y0,z0..z1 aralığında, bev kadar yumuşak kenarlı levha */
+function slab(shape,x,y,z0,z1,bev,m){
+  const g=new THREE.ExtrudeGeometry(shape,{depth:Math.max(.05,z1-z0-2*bev),bevelEnabled:bev>0,bevelThickness:bev,bevelSize:bev,bevelSegments:3,curveSegments:28});
+  const me=new THREE.Mesh(g,m);me.position.set(x,y,z0+bev);me.castShadow=me.receiveShadow=true;return me;}
+function bx(w,h,d,x,y,z,m){const me=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);me.position.set(x+w/2,y+h/2,z+d/2);me.castShadow=me.receiveShadow=true;return me;}
+
+const wallet=new THREE.Group();scene.add(wallet);
+
+/* ----- taban gövde ----- */
+const baseG=new THREE.Group();wallet.add(baseG);
+baseG.add(slab(rr(W-1.2,H-1.2,R-.6),.6,.6,0,2.2,.6,M.base));
+{ // C biçimli duvar (sağ taraf açık)
+ const s=new THREE.Shape(),ri=6;
+ s.moveTo(W,0);s.lineTo(R,0);s.absarc(R,R,R,-Math.PI/2,-Math.PI,true);s.lineTo(0,H-R);s.absarc(R,H-R,R,Math.PI,Math.PI/2,true);s.lineTo(W,H);
+ s.lineTo(W,H-3);s.lineTo(3+ri,H-3);s.absarc(3+ri,H-3-ri,ri,Math.PI/2,Math.PI,false);s.lineTo(3,3+ri);s.absarc(3+ri,3+ri,ri,Math.PI,Math.PI*1.5,false);s.lineTo(W,3);s.lineTo(W,0);
+ baseG.add(slab(s,0,0,2.1,7.8,.25,M.wall));}
+const MAGX=33,MAGY=69.8;
+{ // MagSafe dairesi ve halka oluğu (taban içinde), raylar, rampalar
+ const disc=new THREE.Mesh(new THREE.CylinderGeometry(25.5,25.5,.45,96),M.disc);disc.rotation.x=Math.PI/2;disc.position.set(MAGX,MAGY,2.4);disc.receiveShadow=true;baseG.add(disc);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(26.2,27.4,96),mat(0x14151a));ring.position.set(MAGX,MAGY,2.66);ring.receiveShadow=true;baseG.add(ring);
+ baseG.add(bx(58,2,.5,4.5,6,2.2,M.rail),bx(58,2,.5,4.5,92,2.2,M.rail));
+ // alt yüzdeki (telefona bakan) yuva çizgileri
+ const rg=new THREE.Mesh(new THREE.RingGeometry(23,27.2,96),mat(0x33363c));rg.rotation.y=Math.PI;rg.position.set(MAGX,MAGY,-.02);baseG.add(rg);
+ const bk=new THREE.Mesh(new THREE.PlaneGeometry(8.4,14.4),mat(0x33363c));bk.rotation.y=Math.PI;bk.position.set(MAGX,32.8,-.02);baseG.add(bk);}
+
+/* ----- mıknatıs ----- */
+const magG=new THREE.Group();wallet.add(magG);
+{const s=new THREE.Shape();s.absarc(0,0,27,0,Math.PI*2,false);const h=new THREE.Path();h.absarc(0,0,23,0,Math.PI*2,true);s.holes.push(h);
+ const ring=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:1,bevelEnabled:false,curveSegments:96}),M.mag);ring.position.set(MAGX,MAGY,.1);ring.castShadow=true;magG.add(ring);
+ const bk=new THREE.Mesh(new THREE.BoxGeometry(8,14,1),M.mag);bk.position.set(MAGX,32.8,.6);bk.castShadow=true;magG.add(bk);}
+
+/* ----- yaylı kilit tırnağı: gövde + esnek kol + kanca (tek parça). Kol, sağdaki gövdeden menteşe gibi esner. ----- */
+const HX=46,NOTCH=[46,32,20],NW=3.6,PIV=60;
+const lockG=new THREE.Group();wallet.add(lockG);
+const lockArm=new THREE.Group();lockArm.position.set(PIV,0,0);lockG.add(lockArm);
+lockG.add(bx(5.5,2.4,3.2,PIV,3.1,2.2,M.lock));                         // sabit gövde (tabana yapışır / yuvaya oturur)
+lockArm.add(bx(14,.7,3.0,-14,3.45,2.3,M.lock));                         // esnek kol (ince, yay görevi görür)
+lockArm.add(bx(3.4,2.0,3.0,-15.7,3.45,2.3,M.lock));                     // kanca başı
+lockArm.add(bx(1.4,.5,3.0,-15.4,5.2,2.3,M.lock));                       // kanca ucu (çentiğe girer)
+
+/* ----- taşıyıcı + ortadaki tırnak ----- */
+const sliderG=new THREE.Group();wallet.add(sliderG);
+{const fz=2.7,fz1=3.7;
+ sliderG.add(slab(rr(61.8-1,89-1,5),3.4+.5,5.5+.5,fz,fz1,.5,M.tray));                  // taşıyıcı tabanı
+ sliderG.add(bx(1.2,89,3.2,3.4+.0,5.5,fz1-.01,M.tray).translateX(0));                  // (kenar çıtası aşağıda yeniden)
+ sliderG.children.pop();
+ sliderG.add(bx(58.2,1.2,3.1,6.2,93.3,fz1-.01,M.tray));                                          // arka yan çıta
+ sliderG.add(bx(58.2,.5,3.1,6.2,6.2,fz1-.01,M.tray));                                            // ön yan çıta: ince kabuk
+ {let x=6.2;const ns=NOTCH.slice().sort((p,q)=>p-q);
+  for(const n of ns){const x1=n-NW/2;if(x1>x)sliderG.add(bx(x1-x,.7,3.1,x,5.5,fz1-.01,M.tray));x=n+NW/2;}
+  sliderG.add(bx(64.4-x,.7,3.1,x,5.5,fz1-.01,M.tray));}                                         // çentikli diş sırası
+ sliderG.add(bx(2.8,89,4.2,3.4,5.5,fz1-.01,M.tray));                                    // sol duvar + itici
+ for(let i=0;i<5;i++)sliderG.add(bx(52,.25,.12,8,14+i*18,fz1,mat(0x1c1e22)));            // taşıyıcı üzerindeki ray çizgileri
+ sliderG.add(bx(22,6,.65,3.4,47,6.85,M.tray));                                            // omurga: kartların üstünden, sol duvardan tırnağa
+ sliderG.add(bx(10,8,2.9,15,46,6.85,M.tab));                                              // tırnağın gövdesi: kapak yuvasından geçer
+ sliderG.add(slab(rr(12.4-.6,14-.6,3),14+.3,43+.3,9.5,9.95,.3,M.tab));                    // tırnak başlığı (kapağın üstünde, yuvayı kapatır)
+ for(let i=0;i<3;i++)sliderG.add(bx(.5,9,.06,18.2+i*2.6,45.5,9.93,mat(0x16171a)));       // tutuş çizgileri
+}
+
+/* ----- kartlar ----- */
+const cardsG=new THREE.Group();wallet.add(cardsG);
+function cardTex(){const c=document.createElement('canvas');c.width=324;c.height=512;const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,324,512);gr.addColorStop(0,'#274f90');gr.addColorStop(1,'#10294f');g.fillStyle=gr;g.fillRect(0,0,324,512);
+  g.fillStyle='#d8b45a';g.fillRect(40,60,66,52);g.strokeStyle='#8a6d22';g.strokeRect(40,60,66,52);
+  g.strokeStyle='#fff';g.lineWidth=5;for(let i=0;i<3;i++){g.beginPath();g.arc(240,86,16+i*13,-.9,.9);g.stroke();}
+  g.fillStyle='#fff';g.font='italic 700 54px Arial';g.save();g.translate(40,470);g.fillText('BANKA',0,0);g.restore();const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}
+const CW=54,CL=85.6,CT=.76,cardM=[];
+{const cols=[0x15161a,0x8d9299,0xdfe2e7];
+ for(let i=0;i<4;i++){
+   const top=i===3;
+   const mats=top?[0,1,2,3].map(()=>mat(0x1b3c73)).concat([new THREE.MeshStandardMaterial({map:cardTex(),roughness:.45}),mat(0x1b3c73)]):mat(cols[i],{roughness:.45});
+   const m=new THREE.Mesh(new THREE.BoxGeometry(CW,CL,CT),mats);m.castShadow=m.receiveShadow=true;
+   m.position.set(7.2+CW/2,50,3.72+CT*(i+.5)+.03*i);cardsG.add(m);cardM.push(m);}}
+
+/* ----- kapak ----- */
+const lidG=new THREE.Group();wallet.add(lidG);
+const SL0=14.4,SL1=51.6,SLY=50;                                        // kapaktaki kaydırma yuvası (ortada)
+const lidShape=rr(W-1,H-1,R-.5);lidShape.holes.push(slotPath(SL0-.5,SL1-.5,SLY-.5,5.4));
+const lidMesh=slab(lidShape,.5,.5,7.9,9.2,.45,M.lid);lidG.add(lidMesh);
+const panelShape=rr(52,86,6);panelShape.holes.push(slotPath(SL0-6,SL1-6,SLY-7,5.4));
+const lidPanel=slab(panelShape,6,7,9.15,9.55,.2,M.lidP);lidG.add(lidPanel);
+
+/* ----- örnek telefon ----- */
+const phone=new THREE.Group();scene.add(phone);
+{const gm=mat(0x8f9298,{transparent:true,opacity:.55,roughness:.3,metalness:.5});
+ const body=new THREE.Mesh(new THREE.BoxGeometry(71.6,147.6,7.8),gm);body.position.set(33,69.8,-3.9);phone.add(body);
+ const cam=new THREE.Mesh(new THREE.BoxGeometry(36,36,2.6),mat(0x5a5d63,{roughness:.35}));cam.position.set(-2.8+5+18,143.6-5-18,1.3);phone.add(cam);
+ [[-8,8],[8,8],[0,-8]].forEach(([dx,dy])=>{const l=new THREE.Mesh(new THREE.CylinderGeometry(6,6,1.4,32),M.glass);l.rotation.x=Math.PI/2;l.position.set(cam.position.x+dx,cam.position.y+dy,3);phone.add(l);});}
+phone.visible=false;
+
+/* ---------- durum ---------- */
+const OFF={mag:[-38,0,0,0,0,0,0,0],lock:[34,34,0,0,0,0,0,0],slider:[44,44,44,0,0,0,0,0],cards:[28,28,28,28,0,0,0,0],lid:[72,72,72,72,72,0,0,0]};
+const cur={mag:-38,lock:34,slider:44,cards:28,lid:72,wallet:0,slide:0,lidOp:1,cam:{th:.95,ph:1.12,r:420,tx:33,ty:50,tz:20}};
+const tgt=JSON.parse(JSON.stringify(cur));
+const CAMS=[{r:430,tz:22},{r:400,tz:8},{r:370,tz:14},{r:350,tz:14},{r:330,tz:10},{r:310,tz:6},{r:480,tz:10},{r:330,tz:4,tx:40}];
+let step=0,playing=null;
+
+function setStep(i,fromUser=true){
+  const prev=step;step=Math.max(0,Math.min(STEPS.length-1,i));
+  for(const k of ['mag','lock','slider','cards','lid'])tgt[k]=OFF[k][step];
+  if(step===6&&prev!==6)cur.wallet=60;
+  tgt.wallet=0;if(step<7)tgt.slide=0;
+  const c=CAMS[step];tgt.cam.r=c.r;tgt.cam.tz=c.tz;tgt.cam.tx=c.tx||33;
+  if(step===7){tgt.cam.th=.55;tgt.cam.ph=1.25;}else if(step===6){tgt.cam.th=.85;tgt.cam.ph=1.2;}
+  phone.visible=step>=6;
+  cardsG.visible=document.getElementById('tgCards').checked&&step>=4;
+  if(step<4)cur.cards=28;
+  renderSteps();updateUse();
+  if(fromUser&&playing){clearInterval(playing);playing=null;document.getElementById('play').textContent='▶ Otomatik oynat';}
+}
+function renderSteps(){
+  const ol=document.getElementById('steps');ol.innerHTML='';
+  STEPS.forEach((s,i)=>{
+    const li=document.createElement('li');li.className='step'+(i===step?' on':'')+(i<step?' done':'');
+    const b=document.createElement('button');b.setAttribute('aria-expanded',i===step);
+    b.innerHTML='<span class="n">'+(i+1)+'</span><span>'+s.t+'</span>';b.onclick=()=>setStep(i);
+    const d=document.createElement('div');d.className='body';
+    d.innerHTML='<p>'+s.p+'</p><ul>'+s.l.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+    li.append(b,d);ol.append(li);
+  });
+  document.getElementById('prev').disabled=step===0;
+  document.getElementById('next').disabled=step===STEPS.length-1;
+}
+
+/* ---------- kullanım ---------- */
+const slide=document.getElementById('slide'),DET=[0,14,26];
+function updateUse(){
+  document.getElementById('use').hidden=step!==7;
+  const s=cur.slide;
+  document.getElementById('slideVal').textContent=s.toFixed(1)+' mm';
+  let m;
+  const fl=cur.defl>.05;
+  if(s<0.6)m='Kapalı konum. Kilit tırnağı ilk durdurmada, kartlar içeride.';
+  else if(Math.abs(s-14)<0.8)m='Kısmen açık (14 mm). Tırnak ikinci durdurmaya oturdu, kartların üst kısmı dışarıda.';
+  else if(s>25.5)m='Tam açık (26 mm). Kilit tırnağı son çentikte kilitledi, kartlar fırlamaz.';
+  else m=fl?'Yaylı kilit tırnağı dişin üstüne biniyor, kol esniyor (esneme görselde abartılı). Yalnızca taşıyıcı ve kartlar kayıyor.':'Kilit tırnağı çentiğe girdi, kol boşta. Kaydırmak için hafifçe it.';
+  document.getElementById('state').textContent=m;
+}
+slide.addEventListener('input',()=>{let v=+slide.value;for(const d of DET)if(Math.abs(v-d)<1.4)v=d;slide.value=v;tgt.slide=v;cur.slide=v;updateUse();});
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{tgt.slide=+b.dataset.go;});
+
+document.getElementById('prev').onclick=()=>setStep(step-1);
+document.getElementById('next').onclick=()=>setStep(step+1);
+document.getElementById('play').onclick=function(){
+  if(playing){clearInterval(playing);playing=null;this.textContent='▶ Otomatik oynat';return;}
+  setStep(0,false);this.textContent='■ Durdur';
+  playing=setInterval(()=>{
+    if(step<STEPS.length-1)setStep(step+1,false);
+    else{clearInterval(playing);playing=null;document.getElementById('play').textContent='▶ Otomatik oynat';tgt.slide=26;setTimeout(()=>{tgt.slide=0;},2400);}
+  },2800);
+};
+const VIEWS={front:{th:0,ph:Math.PI/2},back:{th:Math.PI,ph:Math.PI/2},side:{th:Math.PI/2,ph:Math.PI/2},iso:{th:.95,ph:1.12}};
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{const v=VIEWS[b.dataset.view];let d=v.th-tgt.cam.th;d=Math.atan2(Math.sin(d),Math.cos(d));tgt.cam.th+=d;tgt.cam.ph=v.ph;});
+document.getElementById('tgLid').onchange=e=>{tgt.lidOp=e.target.checked?.14:1;};
+document.getElementById('tgCards').onchange=()=>{cardsG.visible=document.getElementById('tgCards').checked&&step>=4;};
+document.getElementById('tgLabels').onchange=()=>{labelsEl.style.display=document.getElementById('tgLabels').checked?'':'none';};
+
+let drag=null;
+stageEl.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};stageEl.setPointerCapture(e.pointerId);});
+stageEl.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag={x:e.clientX,y:e.clientY};
+  tgt.cam.th-=dx*.008;tgt.cam.ph=Math.max(.15,Math.min(Math.PI-.15,tgt.cam.ph-dy*.008));cur.cam.th=tgt.cam.th;cur.cam.ph=tgt.cam.ph;});
+stageEl.addEventListener('pointerup',()=>{drag=null;});stageEl.addEventListener('pointercancel',()=>{drag=null;});
+stageEl.addEventListener('wheel',e=>{e.preventDefault();tgt.cam.r=Math.max(100,Math.min(750,tgt.cam.r*(1+Math.sign(e.deltaY)*.08)));},{passive:false});
+
+/* ---------- etiketler ---------- */
+const labelsEl=document.getElementById('labels');
+const only=k=>s=>s===0||s===k;
+const LABELS=[
+ {t:'Üst kapak (estetik görünüm)',show:s=>s===0||s===5,at:()=>new THREE.Vector3(50,86,9.5+cur.lid)},
+ {t:'Sürgülü kart taşıyıcı (4 kart kapasitesi)',show:s=>s===0||s===3||s===4,at:()=>new THREE.Vector3(56,78,4.2+cur.slider+cur.slide)},
+ {t:'Taban gövde (MagSafe + raylar)',show:s=>s<=2||s===3,at:()=>new THREE.Vector3(60,12,2.4)},
+ {t:'Yaylı kilit tırnağı (geri çekildiğinde kilitler)',show:s=>s===0||s===2||s===7,at:()=>new THREE.Vector3(54,4,4.4+cur.lock)},
+ {t:'MagSafe mıknatıs yuvası (halka)',show:s=>(s===0||s===1)&&camera.position.z<0||s===1,at:()=>new THREE.Vector3(MAGX+25,MAGY,.6+cur.mag)},
+ {t:'Kaydırma tırnağı (kapağın ortasında, yuvada)',show:s=>s>=5,at:()=>new THREE.Vector3(26+cur.slide,50,9.9+cur.slider)}
+].map(L=>{const el=document.createElement('div');el.className='lab';el.textContent=L.t;labelsEl.appendChild(el);L.el=el;return L;});
+const _v=new THREE.Vector3();
+function placeLabels(){const r=cv.clientWidth,h=cv.clientHeight;
+  for(const L of LABELS){if(!L.show(step)){L.el.style.display='none';continue;}
+    _v.copy(L.at());wallet.localToWorld(_v);_v.project(camera);
+    if(_v.z>1){L.el.style.display='none';continue;}
+    L.el.style.display='';L.el.style.left=((_v.x+1)/2*r)+'px';L.el.style.top=((1-_v.y)/2*h)+'px';}}
+
+/* ---------- döngü ---------- */
+function resize(){const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stageEl);resize();
+let last=performance.now();
+const ease=(a,b,dt,k)=>reduce?b:a+(b-a)*(1-Math.exp(-dt*k));
+function frame(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  for(const k of ['mag','lock','slider','cards','lid','wallet','lidOp'])cur[k]=ease(cur[k],tgt[k],dt,5);
+  const before=cur.slide;cur.slide=ease(cur.slide,tgt.slide,dt,6);if(Math.abs(cur.slide-tgt.slide)<.02)cur.slide=tgt.slide;
+  if(step===7&&before!==cur.slide){slide.value=cur.slide;updateUse();}
+  const c=cur.cam,g=tgt.cam;for(const k of ['th','ph','r','tx','ty','tz'])c[k]=ease(c[k],g[k],dt,4);
+  magG.position.z=cur.mag;lockG.position.z=cur.lock;
+  let md=99;for(const n of NOTCH)md=Math.min(md,Math.abs(HX-(n+cur.slide)));
+  cur.defl=Math.max(0,Math.min(1,(md-1.8)/1.6));
+  lockArm.rotation.z=cur.defl*.5/14*3;
+  sliderG.position.set(cur.slide,0,cur.slider);
+  cardsG.position.set(cur.slide,0,cur.cards+cur.slider);
+  const fan=cur.slide/26*3.6;cardM.forEach((m,i)=>{m.position.x=7.2+CW/2+(3-i)*fan;});
+  lidG.position.z=cur.lid;M.lid.opacity=cur.lidOp;M.lidP.opacity=cur.lidOp;
+  wallet.position.z=cur.wallet;
+  camera.position.set(c.tx+c.r*Math.sin(c.ph)*Math.sin(c.th),c.ty+c.r*Math.cos(c.ph),c.tz+c.r*Math.sin(c.ph)*Math.cos(c.th));
+  camera.up.set(0,1,0);camera.lookAt(c.tx,c.ty,c.tz);
+  renderer.render(scene,camera);placeLabels();requestAnimationFrame(frame);
+}
+renderer.setClearColor(0x000000,0);
+if(reduce){for(const k of ['mag','lock','slider','cards','lid'])cur[k]=OFF[k][0];}
+setStep(0,false);requestAnimationFrame(frame);
+
+</script>
+
+</body>
+</html>
